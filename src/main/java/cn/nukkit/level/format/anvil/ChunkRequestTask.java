@@ -51,7 +51,12 @@ public class ChunkRequestTask extends AsyncTask {
 
     @Override
     public void onRun() {
-        Chunk chunk = Chunk.fromFastBinary(this.chunk);
+        Chunk chunk;
+        try {
+            chunk = Chunk.fromFastBinary(this.chunk);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to deserialize chunk", e);
+        }
         byte[] ids = chunk.getBlockIdArray();
         byte[] meta = chunk.getBlockDataArray();
         byte[] heightMap = chunk.getHeightMapArray();

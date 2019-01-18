@@ -2,11 +2,12 @@ package cn.nukkit.level.format.generic;
 
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.level.format.LevelProvider;
+import it.unimi.dsi.fastutil.ints.Int2ObjectArrayMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * author: MagicDroidX
@@ -27,7 +28,7 @@ abstract public class BaseRegionLoader {
     private RandomAccessFile randomAccessFile;
 
     // TODO: A simple array will perform better and use less memory
-    protected final Map<Integer, Integer[]> locationTable = new HashMap<>();
+    protected final Int2ObjectMap<int[]> locationTable = new Int2ObjectArrayMap<>();
 
     public long lastUsed;
 
@@ -69,7 +70,7 @@ abstract public class BaseRegionLoader {
 
     public abstract BaseFullChunk readChunk(int x, int z) throws IOException;
 
-    protected abstract BaseFullChunk unserializeChunk(byte[] data);
+    protected abstract BaseFullChunk unserializeChunk(byte[] data) throws IOException;
 
     public abstract boolean chunkExists(int x, int z);
 
@@ -95,8 +96,8 @@ abstract public class BaseRegionLoader {
 
     public abstract int getZ();
 
-    public Integer[] getLocationIndexes() {
-        return this.locationTable.keySet().stream().toArray(Integer[]::new);
+    public int[] getLocationIndexes() {
+        return this.locationTable.keySet().toIntArray();
     }
 
 }

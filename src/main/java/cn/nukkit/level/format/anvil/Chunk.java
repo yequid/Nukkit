@@ -1,7 +1,6 @@
 package cn.nukkit.level.format.anvil;
 
 import cn.nukkit.Player;
-import cn.nukkit.Server;
 import cn.nukkit.block.Block;
 import cn.nukkit.blockentity.BlockEntity;
 import cn.nukkit.entity.Entity;
@@ -220,41 +219,31 @@ public class Chunk extends BaseChunk {
         return tag;
     }
 
-    public static Chunk fromBinary(byte[] data) {
+    public static Chunk fromBinary(byte[] data) throws IOException {
         return fromBinary(data, null);
     }
 
-    public static Chunk fromBinary(byte[] data, LevelProvider provider) {
-        try {
-            CompoundTag chunk = NBTIO.read(new ByteArrayInputStream(Zlib.inflate(data)), ByteOrder.BIG_ENDIAN);
+    public static Chunk fromBinary(byte[] data, LevelProvider provider) throws IOException {
+        CompoundTag chunk = NBTIO.read(new ByteArrayInputStream(Zlib.inflate(data)), ByteOrder.BIG_ENDIAN);
 
-            if (!chunk.contains("Level") || !(chunk.get("Level") instanceof CompoundTag)) {
-                return null;
-            }
-
-            return new Chunk(provider, chunk.getCompound("Level"));
-        } catch (Exception e) {
-            Server.getInstance().getLogger().logException(e);
-            return null;
+        if (!chunk.contains("Level") || !(chunk.get("Level") instanceof CompoundTag)) {
+            throw new IOException("No Level tag in chunk data");
         }
+        return new Chunk(provider, chunk.getCompound("Level"));
     }
 
 
-    public static Chunk fromFastBinary(byte[] data) {
+    public static Chunk fromFastBinary(byte[] data) throws IOException {
         return fromFastBinary(data, null);
     }
 
-    public static Chunk fromFastBinary(byte[] data, LevelProvider provider) {
-        try {
-            CompoundTag chunk = NBTIO.read(new DataInputStream(new ByteArrayInputStream(data)), ByteOrder.BIG_ENDIAN);
-            if (!chunk.contains("Level") || !(chunk.get("Level") instanceof CompoundTag)) {
-                return null;
-            }
-
-            return new Chunk(provider, chunk.getCompound("Level"));
-        } catch (Exception e) {
+    public static Chunk fromFastBinary(byte[] data, LevelProvider provider) throws IOException {
+        CompoundTag chunk = NBTIO.read(new DataInputStream(new ByteArrayInputStream(data)), ByteOrder.BIG_ENDIAN);
+        if (!chunk.contains("Level") || !(chunk.get("Level") instanceof CompoundTag)) {
             return null;
         }
+
+        return new Chunk(provider, chunk.getCompound("Level"));
     }
 
 

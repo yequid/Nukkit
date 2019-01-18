@@ -10,6 +10,7 @@ import cn.nukkit.math.BlockFace;
 import cn.nukkit.math.BlockFace.Plane;
 import cn.nukkit.math.Vector3;
 import cn.nukkit.utils.BlockColor;
+import cn.nukkit.utils.MainLogger;
 
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -134,6 +135,7 @@ public class BlockRedstoneWire extends BlockFlowable {
         if (meta != maxStrength) {
             this.level.getServer().getPluginManager().callEvent(new BlockRedstoneEvent(this, meta, maxStrength));
 
+            MainLogger.getLogger().info("Logger");
             this.setDamage(maxStrength);
             this.level.setBlock(this, this, false, false);
 
@@ -161,16 +163,15 @@ public class BlockRedstoneWire extends BlockFlowable {
     public boolean onBreak(Item item) {
         this.getLevel().setBlock(this, new BlockAir(), true, true);
 
-        Vector3 pos = getLocation();
 
         this.updateSurroundingRedstone(false);
 
         for (BlockFace blockFace : BlockFace.values()) {
-            this.level.updateAroundRedstone(pos.getSide(blockFace), null);
+            this.level.updateAroundRedstone(this.getSide(blockFace), null);
         }
 
         for (BlockFace blockFace : Plane.HORIZONTAL) {
-            Vector3 v = pos.getSide(blockFace);
+            Vector3 v = this.getSide(blockFace);
 
             if (this.level.getBlock(v).isNormalBlock()) {
                 this.updateAround(v.up(), BlockFace.DOWN);

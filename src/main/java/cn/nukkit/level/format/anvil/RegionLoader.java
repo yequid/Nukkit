@@ -3,9 +3,11 @@ package cn.nukkit.level.format.anvil;
 import cn.nukkit.level.format.FullChunk;
 import cn.nukkit.level.format.LevelProvider;
 import cn.nukkit.level.format.generic.BaseRegionLoader;
-import cn.nukkit.utils.*;
+import cn.nukkit.utils.Binary;
+import cn.nukkit.utils.BinaryStream;
+import cn.nukkit.utils.MainLogger;
+import cn.nukkit.utils.Zlib;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
@@ -24,7 +26,7 @@ public class RegionLoader extends BaseRegionLoader {
 
     @Override
     protected boolean isChunkGenerated(int index) {
-        Integer[] array = this.locationTable.get(index);
+        int[] array = this.locationTable.get(index);
         return !(array[0] == 0 || array[1] == 0);
     }
 
@@ -41,8 +43,7 @@ public class RegionLoader extends BaseRegionLoader {
             return null;
         }
 
-        try {
-        Integer[] table = this.locationTable.get(index);
+        int[] table = this.locationTable.get(index);
         RandomAccessFile raf = this.getRandomAccessFile();
         raf.seek(table[0] << 12);
         int length = raf.readInt();
@@ -52,7 +53,7 @@ public class RegionLoader extends BaseRegionLoader {
                 table[0] = ++this.lastSector;
                 table[1] = 1;
                 this.locationTable.put(index, table);
-                MainLogger.getLogger().error("Corrupted chunk header detected");
+                throw new IOException("Corrupted header");
             }
             return null;
         }
@@ -63,27 +64,16 @@ public class RegionLoader extends BaseRegionLoader {
             this.locationTable.put(index, table);
             this.writeLocationIndex(index);
         } else if (compression != COMPRESSION_ZLIB && compression != COMPRESSION_GZIP) {
-            MainLogger.getLogger().error("Invalid compression type");
-            return null;
+            throw new IOException("Invalid compression type");
         }
 
         byte[] data = new byte[length - 1];
         raf.readFully(data);
-        Chunk chunk = this.unserializeChunk(data);
-        if (chunk != null) {
-            return chunk;
-        } else {
-            MainLogger.getLogger().error("Corrupted chunk detected at (" + x + ", " + z + ") in " + levelProvider.getName());
-            return null;
-        }
-        } catch (EOFException e) {
-            MainLogger.getLogger().error("Your world is corrupt, because some code is bad and corrupted it. oops. ");
-            return null;
-        }
+        return this.unserializeChunk(data);
     }
 
     @Override
-    protected Chunk unserializeChunk(byte[] data) {
+    protected Chunk unserializeChunk(byte[] data) throws IOException {
         return Chunk.fromBinary(data, this.levelProvider);
     }
 
@@ -96,12 +86,12 @@ public class RegionLoader extends BaseRegionLoader {
     protected void saveChunk(int x, int z, byte[] chunkData) throws IOException {
         int length = chunkData.length + 1;
         if (length + 4 > MAX_SECTOR_LENGTH) {
-            throw new ChunkException("Chunk is too big! " + (length + 4) + " > " + MAX_SECTOR_LENGTH);
+            throw new IOException("Chunk is too big! " + (length + 4) + " > " + MAX_SECTOR_LENGTH);
         }
         int sectors = (int) Math.ceil((length + 4) / 4096d);
         int index = getChunkOffset(x, z);
         boolean indexChanged = false;
-        Integer[] table = this.locationTable.get(index);
+        int[] table = this.locationTable.get(index);
 
         if (table[1] < sectors) {
             table[0] = this.lastSector + 1;
@@ -140,7 +130,7 @@ public class RegionLoader extends BaseRegionLoader {
     @Override
     public void removeChunk(int x, int z) {
         int index = getChunkOffset(x, z);
-        Integer[] table = this.locationTable.get(0);
+        int[] table = this.locationTable.get(0);
         table[0] = 0;
         table[1] = 0;
         this.locationTable.put(index, table);
@@ -168,7 +158,7 @@ public class RegionLoader extends BaseRegionLoader {
     public int doSlowCleanUp() throws Exception {
         RandomAccessFile raf = this.getRandomAccessFile();
         for (int i = 0; i < 1024; i++) {
-            Integer[] table = this.locationTable.get(i);
+            int[] table = this.locationTable.get(i);
             if (table[0] == 0 || table[1] == 0) {
                 continue;
             }
@@ -177,12 +167,12 @@ public class RegionLoader extends BaseRegionLoader {
             raf.readFully(chunk);
             int length = Binary.readInt(Arrays.copyOfRange(chunk, 0, 3));
             if (length <= 1) {
-                this.locationTable.put(i, (table = new Integer[]{0, 0, 0}));
+                this.locationTable.put(i, (table = new int[]{0, 0, 0}));
             }
             try {
                 chunk = Zlib.inflate(Arrays.copyOf(chunk, 5));
             } catch (Exception e) {
-                this.locationTable.put(i, new Integer[]{0, 0, 0});
+                this.locationTable.put(i, new int[]{0, 0, 0});
                 continue;
             }
             chunk = Zlib.deflate(chunk, 9);
@@ -220,7 +210,7 @@ public class RegionLoader extends BaseRegionLoader {
         }
         for (int i = 0; i < 1024; ++i) {
             int index = data[i];
-            this.locationTable.put(i, new Integer[]{index >> 8, index & 0xff, data[1024 + i]});
+            this.locationTable.put(i, new int[]{index >> 8, index & 0xff, data[1024 + i]});
             int value = this.locationTable.get(i)[0] + this.locationTable.get(i)[1] - 1;
             if (value > this.lastSector) {
                 this.lastSector = value;
@@ -232,11 +222,11 @@ public class RegionLoader extends BaseRegionLoader {
         RandomAccessFile raf = this.getRandomAccessFile();
         raf.seek(0);
         for (int i = 0; i < 1024; ++i) {
-            Integer[] array = this.locationTable.get(i);
+            int[] array = this.locationTable.get(i);
             raf.writeInt((array[0] << 8) | array[1]);
         }
         for (int i = 0; i < 1024; ++i) {
-            Integer[] array = this.locationTable.get(i);
+            int[] array = this.locationTable.get(i);
             raf.writeInt(array[2]);
         }
     }
@@ -248,7 +238,7 @@ public class RegionLoader extends BaseRegionLoader {
             Integer index = (Integer) entry.getKey();
             Integer[] data = (Integer[]) entry.getValue();
             if (data[0] == 0 || data[1] == 0) {
-                this.locationTable.put(index, new Integer[]{0, 0, 0});
+                this.locationTable.put(index, new int[]{0, 0, 0});
                 continue;
             }
             sectors.put(data[0], index);
@@ -275,7 +265,7 @@ public class RegionLoader extends BaseRegionLoader {
                 raf.seek((sector - shift) << 12);
                 raf.write(old);
             }
-            Integer[] v = this.locationTable.get(index);
+            int[] v = this.locationTable.get(index);
             v[0] -= shift;
             this.locationTable.put(index, v);
             this.lastSector = sector;
@@ -287,7 +277,7 @@ public class RegionLoader extends BaseRegionLoader {
     @Override
     protected void writeLocationIndex(int index) throws IOException {
         RandomAccessFile raf = this.getRandomAccessFile();
-        Integer[] array = this.locationTable.get(index);
+        int[] array = this.locationTable.get(index);
         raf.seek(index << 2);
         raf.writeInt((array[0] << 8) | array[1]);
         raf.seek(4096 + (index << 2));
@@ -302,7 +292,7 @@ public class RegionLoader extends BaseRegionLoader {
         this.lastSector = 1;
         int time = (int) (System.currentTimeMillis() / 1000d);
         for (int i = 0; i < 1024; ++i) {
-            this.locationTable.put(i, new Integer[]{0, 0, time});
+            this.locationTable.put(i, new int[]{0, 0, time});
             raf.writeInt(0);
         }
         for (int i = 0; i < 1024; ++i) {

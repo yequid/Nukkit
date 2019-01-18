@@ -214,7 +214,7 @@ public class Anvil extends BaseLevelProvider {
         try {
             chunk = region.readChunk(chunkX - regionX * 32, chunkZ - regionZ * 32);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new ChunkException("Unable to load chunk at (" + chunkX + ", " + chunkZ + ") in region (" + regionX + ", " + regionZ + ")", e);
         }
         if (chunk == null) {
             if (create) {

@@ -139,7 +139,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
     protected final BiMap<Integer, Inventory> windowIndex = windows.inverse();
     protected final Set<Integer> permanentWindows = new IntOpenHashSet();
 
-    protected int messageCounter = 2;
+    protected int messageCounter = 0;
 
     private String clientSecret;
 
@@ -242,6 +242,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
 
     private AsyncTask preLoginEventTask = null;
     protected boolean shouldLogin = false;
+    private int messagesThisSecond;
 
     public EntityFishingHook fishing = null;
 
@@ -1644,7 +1645,17 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
             return true;
         }
 
-        this.messageCounter = 2;
+        if ((currentTick % 10) == 0 && this.messageCounter > 2) {
+            this.kick(PlayerKickEvent.Reason.UNKNOWN, "disconnect.spam", false);
+        }
+
+        if ((currentTick % 40) == 0) {
+            if (this.messageCounter > 4 &&
+                    this.kick(PlayerKickEvent.Reason.UNKNOWN, "disconnect.spam", false)) {
+                return false;
+            }
+            this.messageCounter = 0;
+        }
 
         this.lastUpdate = currentTick;
 
@@ -2272,6 +2283,10 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                         break;
                     }
 
+                    if (newPos.distanceSquared(this) > 100 && teleportPosition != null && teleportPosition.distanceSquared(newPos) < 100) {
+                        break;
+                    }
+
                     boolean revert = false;
                     if (!this.isAlive() || !this.spawned) {
                         revert = true;
@@ -2725,6 +2740,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
                     if (!this.spawned || !this.isAlive()) {
                         break;
                     }
+                    this.messageCounter++;
 
                     TextPacket textPacket = (TextPacket) packet;
 
@@ -3273,7 +3289,7 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
         }
 
         for (String msg : message.split("\n")) {
-            if (!msg.trim().isEmpty() && msg.length() <= 255 && this.messageCounter-- > 0) {
+            if (!msg.trim().isEmpty() && msg.length() <= 255) {
                 PlayerChatEvent chatEvent = new PlayerChatEvent(this, msg);
                 this.server.getPluginManager().callEvent(chatEvent);
                 if (!chatEvent.isCancelled()) {

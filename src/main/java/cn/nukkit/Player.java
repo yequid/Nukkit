@@ -1645,12 +1645,8 @@ public class Player extends EntityHuman implements CommandSender, InventoryHolde
             return true;
         }
 
-        if ((currentTick % 10) == 0 && this.messageCounter > 2) {
-            this.kick(PlayerKickEvent.Reason.UNKNOWN, "disconnect.spam", false);
-        }
-
-        if ((currentTick % 40) == 0) {
-            if (this.messageCounter > 4 &&
+        if ((currentTick % 20) == 0) {
+            if (this.messageCounter > 5 &&
                     this.kick(PlayerKickEvent.Reason.UNKNOWN, "disconnect.spam", false)) {
                 return false;
             }

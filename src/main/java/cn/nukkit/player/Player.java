@@ -4441,7 +4441,7 @@ public class Player extends Human implements CommandSender, InventoryHolder, Chu
         pk.port = port;
         this.dataPacket(pk);
         String message = "Transferred to " + hostName + ":" + port;
-        this.close(message, message, false);
+        this.close("", message, false);
     }
 
     public LoginChainData getLoginChainData() {
